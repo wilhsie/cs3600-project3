@@ -81,6 +81,66 @@ static void dump_packet(unsigned char *data, int size) {
     }
 }
 
+// Parses a url to format it for a packet ( 3www6google3com0 )
+/*char* parse_url(char* url){
+  int acc = 0;
+  
+  char* tempp = url;
+  char* buf = malloc(sizeof(int));
+  char built_string[strlen(url) + 2];
+ 
+  int flag = 0;
+  while(flag == 0){
+    if(*url == '.' || *url == '\0'){
+
+      sprintf(buf,"%d",acc);
+      strcat(built_string,buf);
+      strncat(built_string, tempp, acc);
+
+      acc = 0;
+      tempp = url;
+      tempp++;
+      if(*url == '\0'){flag=1;}
+    } else {
+      acc++;
+    }
+    url++;
+  }
+
+  free(buf);
+
+  strcat(built_string, "0");
+  return built_string;
+}*/
+
+/*void parse_url(char* url)
+{
+    char output_string[strlen(url) + 2];
+
+    int acc = 0;
+    strcat(url,".");
+     
+    for(int i = 0 ; i < strlen(url) ; i++)
+    {
+        if(url[i]=='.')
+        {
+            output_string[i] = i-acc;
+            while(acc<i)
+            {
+                output_string[i++]=url[lock];
+                acc++;
+            }
+            acc++;
+        }
+    }
+    *output_string++='\0';
+    return output_string;
+}*/
+
+
+
+
+
 int main(int argc, char *argv[]) {
   /**
    * I've included some basic code for opening a socket in C, sending
@@ -120,53 +180,96 @@ int main(int argc, char *argv[]) {
 
    server_name = raw_name;
 
-//   printf("---- DEBUG ----\n");
-//   printf("Server IP: %s\n", server_ip);
-//   printf("Server Port: %d\n", server_port);
-//   printf("Server Name: %s\n", server_name); 
+   printf("---- DEBUG ----\n");
+   printf("Server IP: %s\n", server_ip);
+   printf("Server Port: %d\n", server_port);
+   printf("Server Name: %s\n", server_name); 
+
+   printf("Parsed Name: %s\n", parse_url(server_name));
+
+   // We have parsed our arguments. Next, we need to modify server_name
+   // Into an acceptable format ( 3www6google3com0 )
+   server_name = parse_url(server_name);
+
+   // construct the DNS request
+   header h;
+   h.ID = htons(1337);
+   h.RD = 1;
+   h.TC = 0;
+   h.AA = 0;
+   h.OPCODE = 0;
+   h.QR = 0;
+   h.RCODE = 0;
+   h.RA = 0;
+   h.Z = 0;
+   h.QDCOUNT = htons(1);
+   h.ANCOUNT = htons(0);
+   h.NSCOUNT = htons(0);
+   h.ARCOUNT = htons(0);
+
+   question q;
+   q.QTYPE = htons(1); // Will change if we do bonus (requesting mail/name servers)
+   q.QCLASS = htons(1);
+
+   // Create and zero out a buffer.
+   char buffer[65536];
+   memset(buffer,0,65536);
 
 
-  // construct the DNS request
+   // Add our header to the buffer.
+   memcpy(&buffer,&h,sizeof(header));
 
-  // send the DNS request (and call dump_packet with your request)
+   // Add our server name to the buffer.
+   memcpy(&buffer[sizeof(header)],server_name,sizeof(server_name));
+
+   // Add our question to the buffer.
+   memcpy(&buffer[sizeof(header)+sizeof(server_name)+1],&q,sizeof(question));
   
-  // first, open a UDP socket  
-  int sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 
-  // next, construct the destination address
-  struct sockaddr_in out;
-  out.sin_family = AF_INET;
-  out.sin_port = htons(server_port);
-  out.sin_addr.s_addr = inet_addr(server_ip);
 
-  if (sendto(sock,<<your packet>>,<<packet length>>, 0, &out, sizeof(out)) < 0) {
-    // an error occurred
-  }
+   // send the DNS request (and call dump_packet with your request)
+   dump_packet(buffer,sizeof(header)+sizeof(server_name)+sizeof(question));
+   
+   // first, open a UDP socket  
+   int sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 
-  // wait for the DNS reply (timeout: 5 seconds)
-  struct sockaddr_in in;
-  socklen_t in_len;
-
-  // construct the socket set
-  fd_set socks;
-  FD_ZERO(&socks);
-  FD_SET(sock, &socks);
-
-  // construct the timeout
-  struct timeval t;
-  t.tv_sec  = 5;
-  t.tv_usec = 0;
-
-  // wait to receive, or for a timeout
-  if (select(sock + 1, &socks, NULL, NULL, &t)) {
-    if (recvfrom(sock,<<your input buffer>>,<<input len>>, 0, &in, &in_len) < 0) {
-      // an error occured
-    }
-  } else {
-    // a timeout occurred
-  }
-
-  // print out the result
-
-  return 0;
+   // next, construct the destination address
+   struct sockaddr_in out;
+   out.sin_family = AF_INET;
+   out.sin_port = htons(server_port);
+   out.sin_addr.s_addr = inet_addr(server_ip);
+   
+   /*
+     if (sendto(sock,<<your packet>>,<<packet length>>, 0, &out, sizeof(out)) < 0) {
+     // an error occurred
+     }
+   */
+   // wait for the DNS reply (timeout: 5 seconds)
+   struct sockaddr_in in;
+   socklen_t in_len;
+   
+   // construct the socket set
+   fd_set socks;
+   FD_ZERO(&socks);
+   FD_SET(sock, &socks);
+   
+   // construct the timeout
+   struct timeval t;
+   t.tv_sec  = 5;
+   t.tv_usec = 0;
+   
+   // wait to receive, or for a timeout
+   /*
+     if (select(sock + 1, &socks, NULL, NULL, &t)) {
+     
+     if (recvfrom(sock,<<your input buffer>>,<<input len>>, 0, &in, &in_len) < 0) {
+     // an error occured
+     }
+     } else {
+     // a timeout occurred
+     }
+   */
+   // print out the result
+   
+   return 0;
 }
