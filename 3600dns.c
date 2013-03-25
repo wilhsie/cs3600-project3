@@ -82,19 +82,25 @@ static void dump_packet(unsigned char *data, int size) {
 }
 
 // Parses a url to format it for a packet ( 3www6google3com0 )
-/*char* parse_url(char* url){
+char* parse_url(char* url){
   int acc = 0;
   
   char* tempp = url;
   char* buf = malloc(sizeof(int));
+  char buf2[1];
+
   char built_string[strlen(url) + 2];
+  for(int i = 0; i < strlen(built_string); i++){
+    built_string[i] = 0;
+  }
  
   int flag = 0;
   while(flag == 0){
     if(*url == '.' || *url == '\0'){
 
-      sprintf(buf,"%d",acc);
-      strcat(built_string,buf);
+      buf2[0] = acc;
+      //sprintf(buf,"'%d'",acc);
+      strcat(built_string,buf2);
       strncat(built_string, tempp, acc);
 
       acc = 0;
@@ -108,38 +114,12 @@ static void dump_packet(unsigned char *data, int size) {
   }
 
   free(buf);
+  buf2[0] = 0;
+  strcat(built_string, buf2);
+   
 
-  strcat(built_string, "0");
   return built_string;
-}*/
-
-/*void parse_url(char* url)
-{
-    char output_string[strlen(url) + 2];
-
-    int acc = 0;
-    strcat(url,".");
-     
-    for(int i = 0 ; i < strlen(url) ; i++)
-    {
-        if(url[i]=='.')
-        {
-            output_string[i] = i-acc;
-            while(acc<i)
-            {
-                output_string[i++]=url[lock];
-                acc++;
-            }
-            acc++;
-        }
-    }
-    *output_string++='\0';
-    return output_string;
-}*/
-
-
-
-
+}
 
 int main(int argc, char *argv[]) {
   /**
@@ -177,19 +157,15 @@ int main(int argc, char *argv[]) {
     server_ip = strtok(raw_address," ");
     server_port = 53;
   }
-
-   server_name = raw_name;
-
+/*
    printf("---- DEBUG ----\n");
    printf("Server IP: %s\n", server_ip);
    printf("Server Port: %d\n", server_port);
-   printf("Server Name: %s\n", server_name); 
-
-   printf("Parsed Name: %s\n", parse_url(server_name));
-
+   printf("Parsed Name: %s\n", parse_url(raw_name));
+*/
    // We have parsed our arguments. Next, we need to modify server_name
    // Into an acceptable format ( 3www6google3com0 )
-   server_name = parse_url(server_name);
+   server_name = parse_url(raw_name);
 
    // construct the DNS request
    header h;
@@ -220,15 +196,15 @@ int main(int argc, char *argv[]) {
    memcpy(&buffer,&h,sizeof(header));
 
    // Add our server name to the buffer.
-   memcpy(&buffer[sizeof(header)],server_name,sizeof(server_name));
+   memcpy(&buffer[sizeof(header)],server_name,strlen(server_name));
 
    // Add our question to the buffer.
-   memcpy(&buffer[sizeof(header)+sizeof(server_name)+1],&q,sizeof(question));
+   memcpy(&buffer[sizeof(header)+strlen(server_name)+1],&q,sizeof(question));
   
 
 
    // send the DNS request (and call dump_packet with your request)
-   dump_packet(buffer,sizeof(header)+sizeof(server_name)+sizeof(question));
+   dump_packet(buffer,sizeof(header)+strlen(server_name)+1+sizeof(question));
    
    // first, open a UDP socket  
    int sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
