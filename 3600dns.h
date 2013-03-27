@@ -28,12 +28,11 @@ typedef struct header_s{
 } header;
 
 typedef struct question_s{
-  // char* QNAME;
   int QTYPE:16;
   int QCLASS:16;
 } question;
 
-/*
+
 typedef struct answer_s{
   int TYPE:16;
   int CLASS:16;
@@ -41,6 +40,6 @@ typedef struct answer_s{
   int RDLENGTH:16;
   // char* RDATA:16; FIXME: Might be 2D Array? Dunno.
 } answer; 
-*/
+
 #endif
 

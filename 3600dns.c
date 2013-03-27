@@ -34,6 +34,12 @@
  * data - The pointer to your packet buffer
  * size - The length of your packet
  */
+// Traverses through given buffer following offset pointers and appending to label buffer
+/*
+char * read_label(char *buf, int offset){
+  char *x = buf+offset;
+  if(*x & 0xc
+*/
 static void dump_packet(unsigned char *data, int size) {
     unsigned char *p = data;
     unsigned char c;
@@ -53,7 +59,6 @@ static void dump_packet(unsigned char *data, int size) {
         if (isprint(c) == 0) {
             c = '.';
         }
-
         /* store hex str (for left side) */
         snprintf(bytestr, sizeof(bytestr), "%02X ", *p);
         strncat(hexstr, bytestr, sizeof(hexstr)-strlen(hexstr)-1);
@@ -202,9 +207,10 @@ int main(int argc, char *argv[]) {
    memcpy(&buffer[sizeof(header)+strlen(server_name)+1],&q,sizeof(question));
   
 
+   unsigned int packet_length = sizeof(header)+strlen(server_name)+1+sizeof(question);
 
    // send the DNS request (and call dump_packet with your request)
-   dump_packet(buffer,sizeof(header)+strlen(server_name)+1+sizeof(question));
+   dump_packet(buffer,packet_length);
    
    // first, open a UDP socket  
    int sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
@@ -214,12 +220,14 @@ int main(int argc, char *argv[]) {
    out.sin_family = AF_INET;
    out.sin_port = htons(server_port);
    out.sin_addr.s_addr = inet_addr(server_ip);
-   
-   /*
-     if (sendto(sock,<<your packet>>,<<packet length>>, 0, &out, sizeof(out)) < 0) {
+
+   printf("Buffer to be sent: %s\n", buffer);
+
+   if (sendto(sock,buffer,packet_length, 0, &out, sizeof(out)) < 0) {
      // an error occurred
-     }
-   */
+     fprintf(stderr,"Error occured when sending packet\n"); 
+   }
+   
    // wait for the DNS reply (timeout: 5 seconds)
    struct sockaddr_in in;
    socklen_t in_len;
@@ -233,19 +241,46 @@ int main(int argc, char *argv[]) {
    struct timeval t;
    t.tv_sec  = 5;
    t.tv_usec = 0;
+
+   // Zero out receiving buffer
+   memset(buffer,0,65536);
    
    // wait to receive, or for a timeout
-   /*
-     if (select(sock + 1, &socks, NULL, NULL, &t)) {
-     
-     if (recvfrom(sock,<<your input buffer>>,<<input len>>, 0, &in, &in_len) < 0) {
-     // an error occured
+   if (select(sock + 1, &socks, NULL, NULL, &t)) {    
+     if (recvfrom(sock,buffer,packet_length, 0, &in, &in_len) < 0) {
+       // an error occured
+       fprintf(stderr,"Error occured when receiving packet\n");
      }
-     } else {
+   } else {
      // a timeout occurred
-     }
-   */
+     fprintf(stderr,"Timeout occured when receiving packet\n");
+   }
+   
    // print out the result
+   printf("-----DEBUG------\n");
+   printf("buffer received: %s\n", buffer);
+
+   // mold buffer header
+   header r_header; // The structure we are going to put the header we received in
+   // memcpy(&r_header, &buffer, sizeof(header));
+   
+   memcpy(&r_header, &buffer, sizeof(r_header));
+   r_header.ID = ntohs(r_header.ID);
+   r_header.QDCOUNT = ntohs(r_header.QDCOUNT);
+   r_header.ANCOUNT = ntohs(r_header.ANCOUNT);
+   r_header.NSCOUNT = ntohs(r_header.NSCOUNT);
+   r_header.ARCOUNT = ntohs(r_header.ARCOUNT);
+
+   // mold buffer qname
+   /*
+   char * r_rawname = read_label(buffer, sizeof(header));
+   char * r_qname = (char *) malloc(strlen(server_name)+1); 
+   */
+
+   // mold buffer question
+   question r_question; // The structure we are going to put the question we received in.
+   memcpy(&r_question, &buffer[sizeof(header)+strlen(server_name)+1], sizeof(question));
+   
    
    return 0;
 }
