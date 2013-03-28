@@ -126,6 +126,22 @@ char* parse_url(char* url){
   return built_string;
 }
 
+// get_label: destination, source, offset
+void get_label(char * dest, char * buf, int offset){
+  int new_offset = 0;
+  if(buf[offset] >= 192 && buf[offset] != 0){
+    new_offset = (((short)buf[offset] & 0x3f) << 8) | buf[offset+1];
+    get_label(dest, buf, new_offset);
+  } else {
+    // Create raw label
+    int i;
+    for(i = 0; i < buf[offset]; i++){
+      strcat(dest, buf[offset+i]);
+    }
+    get_label(dest, buf, offset+i);
+  }
+}
+
 int main(int argc, char *argv[]) {
   /**
    * I've included some basic code for opening a socket in C, sending
@@ -199,10 +215,10 @@ int main(int argc, char *argv[]) {
 
    // Add our header to the buffer.
    memcpy(&buffer,&h,sizeof(header));
-
+   
    // Add our server name to the buffer.
    memcpy(&buffer[sizeof(header)],server_name,strlen(server_name));
-
+   
    // Add our question to the buffer.
    memcpy(&buffer[sizeof(header)+strlen(server_name)+1],&q,sizeof(question));
   
@@ -271,12 +287,11 @@ int main(int argc, char *argv[]) {
    r_header.NSCOUNT = ntohs(r_header.NSCOUNT);
    r_header.ARCOUNT = ntohs(r_header.ARCOUNT);
 
-   // mold buffer qname
-   /*
-   char * r_rawname = read_label(buffer, sizeof(header));
-   char * r_qname = (char *) malloc(strlen(server_name)+1); 
-   */
-
+   // allocate buffer where we will store qname
+   char * r_qname = (char *) malloc (strlen(server_name)+2);
+   get_label(&r_qname, buffer, sizeof(r_header));
+   
+   
    // mold buffer question
    question r_question; // The structure we are going to put the question we received in.
    memcpy(&r_question, &buffer[sizeof(header)+strlen(server_name)+1], sizeof(question));
